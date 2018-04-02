@@ -1,0 +1,6 @@
+---
+applications:
+- name: easy-count-server-java
+  random-route: true
+  memory: 256M
+  path: target/EasyCountServer.war
