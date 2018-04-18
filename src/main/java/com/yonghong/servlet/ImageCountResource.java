@@ -49,26 +49,30 @@ public class ImageCountResource extends Application {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public String doPost(String data) throws IOException {
-		ImageData imageData = gson.fromJson(data, ImageData.class);
 		try {
+			ImageData imageData = gson.fromJson(data, ImageData.class);
+			if (imageData == null) {
+				throw new IllegalArgumentException("imageData is null");
+			}
+			if (imageData.image == null) {
+				throw new IllegalArgumentException("imageData has null image, no image was sent");
+			}
+
 			String[] imageDataUrl = imageData.image.split(",");
 			String imageHeader = imageDataUrl[0];
 			String imageBase64 = imageDataUrl[1];
-			byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
 
-			ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
-			BufferedImage image = ImageIO.read(bis);
-			bis.close();
-			image = detectCircles(image);
+			BufferedImage image = decodeStringToImage(imageBase64);
+			image = detectCircles(image, imageData);
 
 			String resultBase64 = encodeImageToString(image, "jpg");
 			imageData.image = imageHeader + "," + resultBase64;
 
+			return gson.toJson(imageData);
 		} catch (Exception e) {
 			// TODO: handle exception
 			return getExceptionStack(e);
 		}
-		return gson.toJson(imageData);
 	}
 
 	private String getExceptionStack(Exception e) {
@@ -77,23 +81,46 @@ public class ImageCountResource extends Application {
 		return errors.toString();
 	}
 
-	public static String encodeImageToString(BufferedImage image, String type) {
+	private BufferedImage decodeStringToImage(String imageBase64) throws Exception {
+		byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
+
+		ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
+		BufferedImage image = ImageIO.read(bis);
+		bis.close();
+		return image;
+	}
+
+	private String encodeImageToString(BufferedImage image, String type) throws Exception {
 		String imageString = null;
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-		try {
-			ImageIO.write(image, type, bos);
-			byte[] imageBytes = bos.toByteArray();
-			imageString = Base64.getEncoder().encodeToString(imageBytes);
+		ImageIO.write(image, type, bos);
+		byte[] imageBytes = bos.toByteArray();
+		imageString = Base64.getEncoder().encodeToString(imageBytes);
 
-			bos.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		bos.close();
 		return imageString;
 	}
 
-	private static BufferedImage detectCircles(BufferedImage image) {
+	private BufferedImage detectCircles(BufferedImage image, ImageData imageData) throws Exception {
+		if (imageData.objectColor == null) {
+			throw new IllegalArgumentException("object color is null");
+		}
+
+		// Both min and max radius need to be set, otherwise use default values.
+		int minRadius = 20;
+		int maxRadius = 40;
+		if (imageData.objectMinRadius > 0 && imageData.objectMaxRadius > 0) {
+			minRadius = imageData.objectMinRadius;
+			maxRadius = imageData.objectMaxRadius;
+		}
+
+		int objectColorRGB = Color.decode(imageData.objectColor).getRGB();
+
+		// minimum distance between the center coordinates of detected circles in
+		// pixels. Use minradius for now
+		double minDist = minRadius;
+
 		// Used to draw on the image
 		Graphics2D imageGraphics = (Graphics2D) image.getGraphics();
 
@@ -105,7 +132,8 @@ public class ImageCountResource extends Application {
 					isObject[x][y] = false;
 					continue;
 				}
-				isObject[x][y] = colorsAreSimilar(image.getRGB(x, y), Color.decode("#CDCAB9").getRGB(), 100);
+				// Compare and determine if a pixel is an object
+				isObject[x][y] = colorsAreSimilar(image.getRGB(x, y), objectColorRGB, 100);
 			}
 		}
 
@@ -125,11 +153,6 @@ public class ImageCountResource extends Application {
 
 		// accumulator value
 		double dp = 1;
-		// minimum distance between the center coordinates of detected circles in pixels
-		double minDist = 20;
-
-		// min and max radii (set these values as you desire)
-		int minRadius = 20, maxRadius = 40;
 
 		// param1 = gradient value used to handle edge detection
 		// param2 = Accumulator threshold value for the

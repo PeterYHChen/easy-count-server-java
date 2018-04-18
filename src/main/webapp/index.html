@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Python Flask Starter Application</title>
+    <title>Image Count Application</title>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -73,7 +73,7 @@
 
                 }
             };
-            var data = JSON.stringify({ "image": dataUrl, "objectMinRadius": 5 });
+            var data = JSON.stringify({ "image": dataUrl, "objectMinRadius": 5, "objectColor": "#CDCAB9" });
             xhr.send(data);
         };
         reader.readAsDataURL(file);

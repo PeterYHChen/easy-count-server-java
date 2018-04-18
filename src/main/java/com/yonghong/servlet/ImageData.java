@@ -9,8 +9,8 @@ package com.yonghong.servlet;
  */
 public class ImageData {
 	String image;
-	int objectMinRadius;
-	int objectMaxRadius;
+	int objectMinRadius; // Radius In pixel
+	int objectMaxRadius; // Radius In pixel
 	String objectColor;
 	int objectActualCount;
 }
