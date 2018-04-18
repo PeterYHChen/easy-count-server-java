@@ -1,23 +1,24 @@
-package wasdev.sample.servlet;
+package com.yonghong.servlet;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.imageio.ImageIO;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Application;
+import javax.ws.rs.core.MediaType;
 
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.opencv_java;
@@ -29,71 +30,68 @@ import org.opencv.imgproc.Imgproc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-/**
- * Servlet implementation class SimpleServlet
- */
-@WebServlet("/SimpleServlet")
-public class SimpleServlet extends HttpServlet {
+
+@Path("/count")
+public class ImageCountResource extends Application {
 	static {
 		Loader.load(opencv_java.class);
 	}
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
+	private static final Gson gson = new GsonBuilder().create();
 
-    /**
-     * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
-     */
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        response.setContentType("text/html");
-        response.getWriter().print("Hello World!");
-    }
-
-	@Override
-	protected void doPost(HttpServletRequest request, HttpServletResponse response)
-			throws ServletException, IOException {
-		BufferedReader reader = request.getReader();
-		StringBuilder sb = new StringBuilder();
-		String line = reader.readLine();
-		while (line != null) {
-			sb.append(line + "\n");
-			line = reader.readLine();
-		}
-		reader.close();
-		String params = sb.toString();
-		Gson gson = new GsonBuilder().create();
-		Map<String, String> jsonmaps = gson.fromJson(params, HashMap.class);
-		String[] imageDataUrl = jsonmaps.get("image").split(",");
-		String imageHeader = imageDataUrl[0];
-		String imageBase64 = imageDataUrl[1];
-		byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
-		
-		ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
-		BufferedImage image = ImageIO.read(bis);
-		bis.close();
-		image = detectCircles(image);
-		
-		
-		response.setContentType("text/html");
-		response.setCharacterEncoding("UTF-8");
-		String resultBase64 = encodeImageToString(image, "jpg");
-		response.getWriter().append(imageHeader + "," + resultBase64);
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public String getHello() throws IOException {
+		return "Hello World";
 	}
-	
+
+	@POST
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Produces(MediaType.APPLICATION_JSON)
+	public String doPost(String data) throws IOException {
+		ImageData imageData = gson.fromJson(data, ImageData.class);
+		try {
+			String[] imageDataUrl = imageData.image.split(",");
+			String imageHeader = imageDataUrl[0];
+			String imageBase64 = imageDataUrl[1];
+			byte[] imageBytes = Base64.getDecoder().decode(imageBase64);
+
+			ByteArrayInputStream bis = new ByteArrayInputStream(imageBytes);
+			BufferedImage image = ImageIO.read(bis);
+			bis.close();
+			image = detectCircles(image);
+
+			String resultBase64 = encodeImageToString(image, "jpg");
+			imageData.image = imageHeader + "," + resultBase64;
+
+		} catch (Exception e) {
+			// TODO: handle exception
+			return getExceptionStack(e);
+		}
+		return gson.toJson(imageData);
+	}
+
+	private String getExceptionStack(Exception e) {
+		StringWriter errors = new StringWriter();
+		e.printStackTrace(new PrintWriter(errors));
+		return errors.toString();
+	}
+
 	public static String encodeImageToString(BufferedImage image, String type) {
-        String imageString = null;
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		String imageString = null;
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 
-        try {
-            ImageIO.write(image, type, bos);
-            byte[] imageBytes = bos.toByteArray();
-            imageString = Base64.getEncoder().encodeToString(imageBytes);
+		try {
+			ImageIO.write(image, type, bos);
+			byte[] imageBytes = bos.toByteArray();
+			imageString = Base64.getEncoder().encodeToString(imageBytes);
 
-            bos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return imageString;
-    }
+			bos.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return imageString;
+	}
 
 	private static BufferedImage detectCircles(BufferedImage image) {
 		// Used to draw on the image

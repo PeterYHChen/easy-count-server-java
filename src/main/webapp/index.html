@@ -61,16 +61,19 @@
             var dataUrl = reader.result;
 
             var xhr = new XMLHttpRequest();
-            xhr.open("POST", "SimpleServlet", true);
+            xhr.open("POST", "rest/api/count", true);
             xhr.setRequestHeader("Content-type", "application/json");
             xhr.onreadystatechange = function () {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     var response = xhr.responseText;
-                    console.log(response);
-                    $('#result').attr('src', response).width(300);
+                    var jsonData = JSON.parse(response);
+                    console.log(jsonData.image);
+                    console.log(jsonData.objectMinRadius);
+                    $('#result').attr('src', jsonData.image).width(300);
+
                 }
             };
-            var data = JSON.stringify({ "image": dataUrl });
+            var data = JSON.stringify({ "image": dataUrl, "objectMinRadius": 5 });
             xhr.send(data);
         };
         reader.readAsDataURL(file);
