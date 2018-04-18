@@ -66,7 +66,7 @@ public class ImageCountResource extends Application {
 			image = detectCircles(image, imageData);
 
 			String resultBase64 = encodeImageToString(image, "jpg");
-			imageData.image = imageHeader + "," + resultBase64;
+			imageData.resultImage = imageHeader + "," + resultBase64;
 
 			return gson.toJson(imageData);
 		} catch (Exception e) {
